@@ -1,0 +1,441 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Shopping Cart - AgriTech</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <style>
+    :root {
+      --primary-green: #28a745;
+      --dark-green: #218838;
+    }
+    body {
+      font-family: 'Poppins', sans-serif;
+      background-color: #f8f9fa;
+    }
+    .navbar {
+      background: white;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    }
+    .navbar-brand {
+      font-weight: 700;
+      color: var(--primary-green) !important;
+    }
+    .btn-success {
+      background-color: var(--primary-green);
+      border-color: var(--primary-green);
+    }
+    .btn-success:hover {
+      background-color: var(--dark-green);
+      border-color: var(--dark-green);
+    }
+    .cart-item {
+      transition: transform 0.2s;
+    }
+    .cart-item:hover {
+      transform: translateX(5px);
+    }
+  </style>
+</head>
+<body>
+  <!-- Navbar -->
+  <nav class="navbar navbar-expand-lg navbar-light mb-4">
+    <div class="container-fluid">
+      <a class="navbar-brand" href="/buyer/marketplace">
+        <i class="fas fa-seedling me-2"></i>AgriTech
+      </a>
+      <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
+        <span class="navbar-toggler-icon"></span>
+      </button>
+      <div class="collapse navbar-collapse" id="navbarNav">
+        <ul class="navbar-nav ms-auto">
+          <li class="nav-item">
+            <a class="nav-link" href="/buyer/marketplace">Marketplace</a>
+          </li>
+          <li class="nav-item">
+            <a class="nav-link" href="/buyer/dashboard">My Purchases</a>
+          </li>
+          <li class="nav-item">
+            <a class="nav-link active" href="/buyer/cart">
+              <i class="fas fa-shopping-cart"></i> Cart
+            </a>
+          </li>
+          <li class="nav-item dropdown">
+            <a class="nav-link dropdown-toggle" href="#" id="languageDropdown" role="button" data-bs-toggle="dropdown">
+              <i class="fas fa-language"></i> Language
+            </a>
+            <ul class="dropdown-menu">
+              <li><a class="dropdown-item" href="#">English</a></li>
+              <li><a class="dropdown-item" href="#">हिंदी</a></li>
+            </ul>
+          </li>
+          <% if (locals.user && locals.user.role === 'farmer') { %>
+          <li class="nav-item d-flex align-items-center me-3">
+            <a href="/farmer/dashboard" class="btn btn-outline-primary btn-sm">
+              <i class="fas fa-exchange-alt me-1"></i> Switch to Seller Mode
+            </a>
+          </li>
+          <% } %>
+          <li class="nav-item">
+            <form action="/logout" method="POST" class="d-inline">
+              <button type="submit" class="btn btn-outline-danger btn-sm">Logout</button>
+            </form>
+          </li>
+        </ul>
+      </div>
+    </div>
+  </nav>
+
+  <div class="container">
+    <h2 class="mb-4"><i class="fas fa-shopping-cart me-2"></i>Shopping Cart</h2>
+
+    <!-- Flash Messages -->
+    <div id="flashMessages"></div>
+
+    <!-- Cart Items -->
+    <div id="cartItems" class="row">
+      <!-- Cart items will be loaded here -->
+    </div>
+
+    <!-- Empty Cart -->
+    <div id="emptyCart" class="text-center py-5" style="display: none;">
+      <i class="fas fa-shopping-cart fa-3x text-muted mb-3"></i>
+      <h4>Your cart is empty</h4>
+      <p class="text-muted">Add some products from the marketplace!</p>
+      <a href="/buyer/marketplace" class="btn btn-success mt-3">
+        <i class="fas fa-arrow-left me-2"></i>Continue Shopping
+      </a>
+    </div>
+
+    <!-- Cart Summary -->
+    <div id="cartSummary" class="card mt-4" style="display: none;">
+      <div class="card-body">
+        <div class="row">
+          <div class="col-md-5">
+            <h5>Order Summary</h5>
+            <hr>
+            <div class="d-flex justify-content-between mb-2">
+              <span>Items Total:</span>
+              <span id="subtotal">₹0.00</span>
+            </div>
+            <div class="d-flex justify-content-between">
+              <strong>Total to Pay (COD):</strong>
+              <strong class="text-success" id="total">₹0.00</strong>
+            </div>
+          </div>
+          <div class="col-md-7 border-start pl-4">
+            <h5>Buyer Details</h5>
+            <hr>
+            <form id="checkoutForm" novalidate>
+              <div class="row mb-3">
+                <div class="col-md-6">
+                  <label class="form-label text-muted small">Full Name *</label>
+                  <input type="text" id="buyerName" class="form-control form-control-sm" pattern="^[a-zA-Z\s]+$" title="Name should contain only characters" required>
+                  <div class="invalid-feedback" id="nameError">Name should contain only characters</div>
+                </div>
+                <div class="col-md-6">
+                  <label class="form-label text-muted small">Phone Number *</label>
+                  <input type="tel" id="buyerPhone" class="form-control form-control-sm" pattern="^[0-9]{10}$" maxlength="10" title="Enter valid 10-digit phone number" required>
+                  <div class="invalid-feedback" id="phoneError">Enter valid 10-digit phone number</div>
+                </div>
+              </div>
+              <div class="mb-3">
+                <label class="form-label text-muted small">Delivery Address *</label>
+                <textarea id="buyerAddress" class="form-control form-control-sm" rows="2" required></textarea>
+              </div>
+              <button type="submit" class="btn btn-success w-100" id="checkoutBtn" disabled>
+                <i class="fas fa-check-circle me-2"></i> Confirm Cash on Delivery Order
+              </button>
+              <div id="formGlobalError" class="text-danger small mt-2 d-none">Please fix errors to proceed.</div>
+            </form>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+  <script>
+    // Get cart from localStorage
+    function getCart() {
+      const cart = localStorage.getItem('cart');
+      return cart ? JSON.parse(cart) : [];
+    }
+
+    // Save cart to localStorage
+    function saveCart(cart) {
+      localStorage.setItem('cart', JSON.stringify(cart));
+    }
+
+    // Load cart items
+    function loadCart() {
+      const cart = getCart();
+      const cartItemsDiv = document.getElementById('cartItems');
+      const emptyCartDiv = document.getElementById('emptyCart');
+      const cartSummaryDiv = document.getElementById('cartSummary');
+
+      if (cart.length === 0) {
+        cartItemsDiv.innerHTML = '';
+        emptyCartDiv.style.display = 'block';
+        cartSummaryDiv.style.display = 'none';
+        return;
+      }
+
+      emptyCartDiv.style.display = 'none';
+      cartSummaryDiv.style.display = 'block';
+
+      let html = '<div class="col-12"><div class="card"><div class="card-body">';
+      let subtotal = 0;
+
+      cart.forEach((item, index) => {
+        const itemTotal = item.price * item.quantity;
+        subtotal += itemTotal;
+        
+        html += `
+          <div class="cart-item border-bottom pb-3 mb-3">
+            <div class="row align-items-center">
+              <div class="col-md-2">
+                <img src="${item.image || 'https://images.unsplash.com/photo-1501004318641-b39e6451bec6?q=80&w=400&auto=format&fit=crop'}" 
+                     class="img-fluid rounded" alt="${item.name}">
+              </div>
+              <div class="col-md-4">
+                <h6 class="mb-1">${item.name}</h6>
+                <p class="text-muted small mb-0">Price: ₹${item.price.toFixed(2)}</p>
+              </div>
+              <div class="col-md-3">
+                <div class="input-group">
+                  <button class="btn btn-outline-secondary" id="descBtn-${index}" type="button" onclick="updateQuantity(${index}, -1)" ${item.quantity <= 1 ? 'disabled' : ''}>-</button>
+                  <input type="text" class="form-control text-center" value="${item.quantity}" 
+                         onchange="updateQuantity(${index}, 0, this.value)" oninput="handleQtyInput(event, ${index}, ${item.stock})" id="qty-${index}">
+                  <button class="btn btn-outline-secondary" id="incBtn-${index}" type="button" onclick="updateQuantity(${index}, 1)" ${item.quantity >= item.stock ? 'disabled' : ''}>+</button>
+                </div>
+                <div class="text-danger small mt-1" id="qty-error-${index}" style="display: none;">Only ${item.stock} items available in stock</div>
+              </div>
+              <div class="col-md-2">
+                <strong class="text-success">₹${itemTotal.toFixed(2)}</strong>
+              </div>
+              <div class="col-md-1">
+                <button class="btn btn-sm btn-danger" onclick="removeFromCart(${index})">
+                  <i class="fas fa-trash"></i>
+                </button>
+              </div>
+            </div>
+          </div>
+        `;
+      });
+
+      html += '</div></div></div>';
+      cartItemsDiv.innerHTML = html;
+
+      // Update summary
+      document.getElementById('subtotal').textContent = `₹${subtotal.toFixed(2)}`;
+      document.getElementById('total').textContent = `₹${subtotal.toFixed(2)}`;
+    }
+
+    // Form Validation Logic
+    function validateForm() {
+      const name = document.getElementById('buyerName');
+      const phone = document.getElementById('buyerPhone');
+      const address = document.getElementById('buyerAddress');
+      const btn = document.getElementById('checkoutBtn');
+      const cart = getCart();
+
+      let isValid = true;
+
+      if (!name.value || !/^[a-zA-Z\s]+$/.test(name.value)) isValid = false;
+      if (!phone.value || !/^[0-9]{10}$/.test(phone.value)) isValid = false;
+      if (!address || !address.value.trim()) isValid = false;
+      
+      let cartValid = true;
+      if (cart.length === 0) cartValid = false;
+      cart.forEach((item, index) => {
+        const qtyEl = document.getElementById(`qty-${index}`);
+        const qty = qtyEl ? parseInt(qtyEl.value) : item.quantity;
+        if (isNaN(qty) || qty < 1 || qty > item.stock) cartValid = false;
+      });
+
+      btn.disabled = !(isValid && cartValid);
+    }
+
+    // Attach listeners after form mounts (wait for DOM)
+    document.addEventListener('DOMContentLoaded', () => {
+      document.body.addEventListener('input', (e) => {
+        if (e.target.id === 'buyerName') {
+           e.target.value = e.target.value.replace(/[^a-zA-Z\s]/g, '');
+           e.target.classList.toggle('is-invalid', e.target.value && !/^[a-zA-Z\s]+$/.test(e.target.value));
+           validateForm();
+        }
+        if (e.target.id === 'buyerPhone') {
+           e.target.value = e.target.value.replace(/[^0-9]/g, '').slice(0,10);
+           e.target.classList.toggle('is-invalid', e.target.value && !/^[0-9]{10}$/.test(e.target.value));
+           validateForm();
+        }
+        if (e.target.id === 'buyerAddress') {
+           validateForm();
+        }
+      });
+    });
+
+    function handleQtyInput(e, index, maxStock) {
+      e.target.value = e.target.value.replace(/[^0-9]/g, '');
+      let val = parseInt(e.target.value);
+      if (isNaN(val)) val = 0;
+      
+      const errorDiv = document.getElementById(`qty-error-${index}`);
+      if (val > maxStock) {
+        e.target.value = maxStock;
+        if (errorDiv) {
+          errorDiv.style.display = 'block';
+          errorDiv.textContent = `Only ${maxStock} items available in stock`;
+        }
+      } else {
+        if (errorDiv) errorDiv.style.display = 'none';
+      }
+      
+      let actualVal = parseInt(e.target.value) || 0;
+      document.getElementById(`descBtn-${index}`).disabled = (actualVal <= 1);
+      document.getElementById(`incBtn-${index}`).disabled = (actualVal >= maxStock);
+      
+      if (actualVal >= 1 && actualVal <= maxStock) {
+        const cart = getCart();
+        cart[index].quantity = actualVal;
+        localStorage.setItem('cart', JSON.stringify(cart));
+        validateForm();
+        
+        let newSubtotal = 0;
+        cart.forEach(item => {
+          newSubtotal += item.price * item.quantity;
+        });
+        document.getElementById('subtotal').textContent = `₹${newSubtotal.toFixed(2)}`;
+        document.getElementById('total').textContent = `₹${newSubtotal.toFixed(2)}`;
+        
+        const rowTotalEl = e.target.closest('.row').querySelector('.col-md-2 strong');
+        if (rowTotalEl) {
+          rowTotalEl.textContent = `₹${(cart[index].price * actualVal).toFixed(2)}`;
+        }
+      } else {
+        validateForm();
+      }
+    }
+
+    // Update quantity
+    function updateQuantity(index, change, value) {
+      const cart = getCart();
+      const stock = cart[index].stock;
+      let newQty = cart[index].quantity;
+
+      if (value !== undefined) {
+        newQty = parseInt(value);
+        if (isNaN(newQty)) newQty = 1;
+      } else {
+        newQty = cart[index].quantity + change;
+      }
+
+      if (newQty < 1) newQty = 1;
+      
+      const errorDiv = document.getElementById(`qty-error-${index}`);
+      
+      if (newQty > stock) {
+        newQty = stock;
+        if (errorDiv) {
+          errorDiv.style.display = 'block';
+          errorDiv.textContent = `Only ${stock} items available in stock`;
+        }
+      } else {
+        if (errorDiv) errorDiv.style.display = 'none';
+      }
+
+      cart[index].quantity = newQty;
+      saveCart(cart);
+      loadCart();
+      validateForm();
+    }
+
+    // Remove from cart
+    function removeFromCart(index) {
+      if (confirm('Remove this item from cart?')) {
+        const cart = getCart();
+        cart.splice(index, 1);
+        saveCart(cart);
+        loadCart();
+        showFlashMessage('Item removed from cart', 'success');
+      }
+    }
+
+    // Checkout Form Submission
+    document.getElementById('checkoutForm').addEventListener('submit', async function(e) {
+      e.preventDefault();
+      
+      const cart = getCart();
+      if (cart.length === 0) {
+        showFlashMessage('Your cart is empty', 'warning');
+        return;
+      }
+
+      const btn = document.getElementById('checkoutBtn');
+      const originalText = btn.innerHTML;
+      btn.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>Processing...';
+      btn.disabled = true;
+
+      const buyerDetails = {
+        name: document.getElementById('buyerName').value,
+        phone: document.getElementById('buyerPhone').value,
+        address: document.getElementById('buyerAddress').value
+      };
+
+      try {
+        const res = await fetch('/buyer/cart/checkout', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ cart, buyerDetails })
+        });
+        
+        // Wait for redirect or json
+        if (res.redirected) {
+          localStorage.removeItem('cart');
+          window.location.href = res.url;
+          return;
+        }
+
+        const data = await res.json();
+        
+        if (res.ok) {
+          localStorage.removeItem('cart');
+          window.location.href = '/buyer/dashboard?success=order_placed';
+        } else {
+          showFlashMessage(data.error || data.message || 'Error processing checkout!', 'danger');
+          btn.innerHTML = originalText;
+          btn.disabled = false;
+        }
+      } catch (error) {
+        console.error('Error:', error);
+        showFlashMessage('Network Error processing checkout', 'danger');
+        btn.innerHTML = originalText;
+        btn.disabled = false;
+      }
+    });
+
+    // Flash message function
+    function showFlashMessage(message, type) {
+      const flashDiv = document.getElementById('flashMessages');
+      const alert = document.createElement('div');
+      alert.className = `alert alert-${type} alert-dismissible fade show`;
+      alert.innerHTML = `
+        <i class="fas fa-${type === 'success' ? 'check-circle' : 'exclamation-circle'} me-2"></i>${message}
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+      `;
+      flashDiv.appendChild(alert);
+      setTimeout(() => alert.remove(), 3000);
+    }
+
+    // Load cart on page load
+    loadCart();
+  </script>
+</body>
+</html>
+
